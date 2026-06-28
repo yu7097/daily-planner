@@ -256,14 +256,25 @@
       </div>
     </div>
 
-    <div class="time-block" id="block-day">
+    <div class="time-block" id="block-late-morning">
       <div class="time-block-header">
-        <span class="emoji">☀️</span><h2>白天</h2>
-        <span class="count" id="count-day">0</span>
+        <span class="emoji">🌤️</span><h2>上午</h2>
+        <span class="count" id="count-late-morning">0</span>
+      </div>
+      <div class="task-list" id="tasks-late-morning"></div>
+      <div class="add-task-form">
+        <input type="text" placeholder="比如：健身..." id="input-late-morning">
+        <button class="btn-add" data-block="late-morning">+ 添加</button>
+      </div>
+    </div>
+    <div class="time-block" id="block-afternoon">
+      <div class="time-block-header">
+        <span class="emoji">☀️</span><h2>下午</h2>
+        <span class="count" id="count-afternoon">0</span>
       </div>
       <div class="task-list" id="tasks-day"></div>
       <div class="add-task-form">
-        <input type="text" placeholder="比如：写代码..." id="input-day">
+        <input type="text" placeholder="比如：健身..." id="input-afternoon">
         <button class="btn-add" data-block="day">+ 添加</button>
       </div>
     </div>
@@ -326,7 +337,7 @@
   function loadDay(dateStr) {
     const all = loadAll();
     if (!all[dateStr]) {
-      all[dateStr] = { morning: [], day: [], evening: [] };
+      all[dateStr] = { morning: [], late-morning: [], afternoon: [], evening: [] };
     }
     return all[dateStr];
   }
@@ -349,7 +360,8 @@
 
     const blocks = loadDay(currentDate);
     renderBlock('morning', blocks.morning || []);
-    renderBlock('day', blocks.day || []);
+    renderBlock('late-morning', blocks['late-morning'] || []);
+    renderBlock('afternoon', blocks.afternoon || []);
     renderBlock('evening', blocks.evening || []);
     updateProgress(blocks);
     updateStreakDisplay();
@@ -489,7 +501,7 @@
     let total = 0;
     for (const dateStr of Object.keys(all)) {
       const day = all[dateStr];
-      for (const block of ['morning','day','evening']) {
+      for (const block of ['morning','late-morning','afternoon','evening']) {
         if (day[block]) total += day[block].filter(t => t.done).length;
       }
     }
