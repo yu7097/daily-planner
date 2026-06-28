@@ -303,6 +303,16 @@
     </div>
     <div class="history-week" id="historyWeek"></div>
     <div class="history-detail" id="historyDetail"></div>
+  <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:10px;">🔄 同步到手机</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">导出数据，通过微信发送给自己，在手机上导入</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="btnExport" style="flex:1;min-width:80px;padding:10px;border:none;border-radius:10px;background:var(--green);color:#fff;font-size:14px;cursor:pointer;">📤 导出</button>
+      <button id="btnImport" style="flex:1;min-width:80px;padding:10px;border:none;border-radius:10px;background:var(--bg);color:var(--text);border:1px solid var(--border);font-size:14px;cursor:pointer;">📥 导入</button>
+    </div>
+    <textarea id="syncDataArea" style="display:none;width:100%;margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:10px;font-size:12px;min-height:60px;resize:vertical;background:var(--bg);" placeholder="粘贴数据..."></textarea>
+    <button id="btnImportConfirm" style="display:none;margin-top:6px;padding:8px 16px;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:13px;cursor:pointer;">确认导入</button>
+  </div>
   </div>
 </div>
 
@@ -821,6 +831,85 @@
   document.getElementById('photoModal').addEventListener('click', function(e) {
     if (e.target === this) closePhotoModal();
   });
+
+
+  // ====== 数据同步（通过微信手动同步） ======
+  function exportData() {
+    const all = loadAll();
+    if (Object.keys(all).length === 0) {
+      alert("还没有数据可以导出，先添加一些任务吧！");
+      return;
+    }
+    try {
+      const json = JSON.stringify(all);
+      const encoded = btoa(unescape(encodeURIComponent(json)));
+      const textarea = document.getElementById("syncDataArea");
+      textarea.style.display = "block";
+      textarea.value = encoded;
+      textarea.select();
+      navigator.clipboard.writeText(encoded).then(function() {
+        alert("✅ 数据已复制！\n打开微信发送给""文件传输助手"，然后在手机上打开本页面，点击"导入"");
+      }).catch(function() {
+        alert("✅ 数据已生成！请手动复制下面的代码，发送到微信");
+      });
+      document.getElementById("btnImportConfirm").style.display = "none";
+    } catch(e) {
+      alert("导出失败：" + e.message);
+    }
+  }
+
+  function showImport() {
+    const textarea = document.getElementById("syncDataArea");
+    textarea.style.display = "block";
+    textarea.value = "";
+    textarea.placeholder = "请粘贴从Mac端复制的同步数据...";
+    document.getElementById("btnImportConfirm").style.display = "inline-block";
+  }
+
+  function confirmImport() {
+    const textarea = document.getElementById("syncDataArea");
+    const encoded = textarea.value.trim();
+    if (!encoded) { alert("请先粘贴数据"); return; }
+    try {
+      const json = decodeURIComponent(escape(atob(encoded)));
+      const data = JSON.parse(json);
+      if (typeof data !== "object") throw new Error("格式不对");
+      const current = loadAll();
+      // Merge: new data overwrites existing keys
+      for (const key of Object.keys(data)) {
+        current[key] = data[key];
+      }
+      saveAll(current);
+      alert("✅ 导入成功！已合并 " + Object.keys(data).length + " 天的数据");
+      textarea.style.display = "none";
+      document.getElementById("btnImportConfirm").style.display = "none";
+      render();
+      if (document.getElementById("tab-history").classList.contains("active")) {
+        renderHistory();
+      }
+    } catch(e) {
+      alert("❌ 导入失败：数据格式不正确，请确认复制了完整的同步数据\n" + e.message);
+    }
+  }
+
+  // Bind sync buttons (re-bind on history render)
+  function bindSyncButtons() {
+    const btnExport = document.getElementById("btnExport");
+    const btnImport = document.getElementById("btnImport");
+    const btnConfirm = document.getElementById("btnImportConfirm");
+    if (btnExport) btnExport.onclick = exportData;
+    if (btnImport) btnImport.onclick = showImport;
+    if (btnConfirm) btnConfirm.onclick = confirmImport;
+  }
+
+  // Patch renderHistory to also bind sync buttons
+  const _origRenderHistory = renderHistory;
+  renderHistory = function() {
+    _origRenderHistory();
+    bindSyncButtons();
+  };
+
+  bindSyncButtons();
 
   // ====== Init ======
   render();
