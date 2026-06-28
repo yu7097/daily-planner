@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>今日计划</title>
+<style>
+  :root {
+    --green: #5ba88c;
+    --green-light: #e8f5ed;
+    --green-dark: #3d8a6f;
+    --bg: #f6f8f7;
+    --card: #ffffff;
+    --text: #2c3e3a;
+    --text-secondary: #7a8f89;
+    --border: #e2eae6;
+    --shadow: 0 1px 8px rgba(60,100,80,0.08);
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  .header {
+    background: var(--card);
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top:0; z-index:10;
+  }
+  .header-top {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .header h1 { font-size: 20px; font-weight: 600; }
+  .header .date-nav { display: flex; align-items: center; gap: 12px; }
+  .date-nav button {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; cursor: pointer; font-size: 16px; line-height: 1;
+  }
+  .date-nav button:active { opacity: 0.6; }
+  .date-nav .date-label { font-size: 14px; color: var(--text-secondary); min-width: 100px; text-align: center; }
+  .date-nav .btn-today {
+    font-size: 12px; padding: 4px 10px; background: var(--green); color: #fff; border: none;
+    border-radius: 6px; cursor: pointer;
+  }
+  .progress-bar-wrap {
+    height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%; background: var(--green); border-radius: 3px;
+    transition: width 0.3s; width: 0%;
+  }
+  .progress-stats {
+    display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);
+    margin-top: 6px;
+  }
+  .streak { color: var(--green-dark); font-weight: 600; }
+
+  .content { max-width: 700px; margin: 0 auto; padding: 16px; }
+  .time-block { margin-bottom: 20px; }
+  .time-block-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .time-block-header .emoji { font-size: 20px; }
+  .time-block-header h2 { font-size: 16px; font-weight: 600; }
+  .time-block-header .count {
+    font-size: 12px; color: var(--text-secondary); background: var(--bg);
+    padding: 2px 8px; border-radius: 10px;
+  }
+
+  .task-list { display: flex; flex-direction: column; gap: 8px; }
+  .task-card {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+    transition: all 0.15s;
+  }
+  .task-card.done { opacity: 0.75; }
+  .task-card.done .task-text { text-decoration: line-through; color: var(--text-secondary); }
+  .task-check {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border);
+    cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    background: var(--card); transition: all 0.15s;
+  }
+  .task-check.checked {
+    background: var(--green); border-color: var(--green);
+  }
+  .task-check.checked::after { content: '✓'; color: #fff; font-size: 14px; font-weight: bold; }
+
+  .task-text {
+    flex: 1; font-size: 14px; line-height: 1.4; min-width: 0;
+  }
+  .task-actions {
+    display: flex; gap: 6px; align-items: center; flex-shrink: 0;
+  }
+  .task-actions button {
+    background: none; border: none; cursor: pointer; font-size: 16px;
+    padding: 4px; border-radius: 6px; line-height: 1;
+  }
+  .task-actions button:active { background: var(--border); }
+  .task-photo {
+    width: 36px; height: 36px; border-radius: 8px; object-fit: cover;
+    cursor: pointer; border: 1px solid var(--border);
+  }
+  .task-photo-placeholder {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--bg); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; color: var(--text-secondary);
+    border: 1px dashed var(--border);
+  }
+
+  .add-task-form {
+    display: flex; gap: 8px; margin-top: 8px;
+  }
+  .add-task-form input {
+    flex: 1; border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; font-size: 14px; background: var(--bg); outline: none;
+    transition: border-color 0.2s;
+  }
+  .add-task-form input:focus { border-color: var(--green); }
+  .add-task-form .btn-add {
+    background: var(--green); color: #fff; border: none; border-radius: 10px;
+    padding: 10px 16px; font-size: 13px; font-weight: 500; cursor: pointer;
+    white-space: nowrap;
+  }
+  .add-task-form .btn-add:active { transform: scale(0.96); }
+
+  .empty-state {
+    text-align: center; padding: 24px 0; color: var(--text-secondary); font-size: 13px;
+  }
+
+  /* Photo modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 100; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 16px; padding: 20px; max-width: 420px;
+    width: 100%; text-align: center;
+  }
+  .modal img { max-width: 100%; max-height: 50vh; border-radius: 10px; margin-bottom: 12px; }
+  .modal .modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .modal .modal-actions button {
+    padding: 8px 18px; border-radius: 10px; border: none; font-size: 14px; cursor: pointer;
+  }
+  .modal .modal-actions .btn-capture {
+    background: var(--green); color: #fff;
+  }
+  .modal .modal-actions .btn-upload { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .modal .modal-actions .btn-delete { background: #fee; color: #c55; }
+  .modal .modal-actions .btn-close { background: var(--bg); color: var(--text-secondary); }
+
+  video { max-width: 100%; border-radius: 10px; margin-bottom: 12px; }
+  .camera-controls { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
+  .camera-controls button {
+    padding: 8px 16px; border-radius: 10px; border: none; font-size: 13px; cursor: pointer;
+  }
+  .camera-controls .btn-shoot { background: var(--green); color: #fff; }
+  .camera-controls .btn-cancel-cam { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border); }
+
+  .tab-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; background: var(--card);
+    border-top: 1px solid var(--border); display: flex; z-index: 10;
+  }
+  .tab-bar button {
+    flex: 1; padding: 12px 0; border: none; background: none; font-size: 13px;
+    cursor: pointer; color: var(--text-secondary); transition: all 0.15s;
+  }
+  .tab-bar button.active { color: var(--green); font-weight: 600; }
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+
+  /* History page */
+  .history-week {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px; margin-bottom: 12px;
+  }
+  .history-week h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .history-days { display: flex; gap: 6px; flex-wrap: wrap; }
+  .history-day {
+    width: 40px; height: 50px; border-radius: 8px; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    font-size: 11px; background: var(--bg); gap: 2px;
+  }
+  .history-day .day-num { font-weight: 600; }
+  .history-day .day-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .history-day .day-dot.full { background: var(--green); }
+  .history-day .day-dot.partial { background: #d4a853; }
+  .history-day .day-dot.empty { background: var(--border); }
+  .history-day.today { border: 2px solid var(--green); }
+  .history-day.future { opacity: 0.35; }
+
+  .summary-stat {
+    display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .summary-stat .stat-card {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 14px 18px; flex: 1; min-width: 100px; text-align: center;
+  }
+  .summary-stat .stat-num { font-size: 24px; font-weight: 700; color: var(--green-dark); }
+  .summary-stat .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  .history-detail { margin-top: 12px; }
+  .history-detail-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .history-detail-item:last-child { border: none; }
+  .history-detail-item .hd-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .history-detail-item .hd-dot.missed { background: var(--border); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-top">
+    <h1>📋 今日计划</h1>
+    <div class="date-nav">
+      <button id="prevDay">‹</button>
+      <span class="date-label" id="dateLabel">今天</span>
+      <button id="nextDay">›</button>
+      <button class="btn-today" id="goToday">今天</button>
+    </div>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+  <div class="progress-stats">
+    <span id="progressText">0 / 0</span>
+    <span class="streak" id="streakText">🔥 连续 0 天</span>
+  </div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="plan">📝 计划</button>
+  <button class="tab-btn" data-tab="history">📊 记录</button>
+</div>
+
+<!-- Tab: Plan -->
+<div class="tab-page active" id="tab-plan">
+  <div class="content">
+    <div class="time-block" id="block-morning">
+      <div class="time-block-header">
+        <span class="emoji">🌅</span><h2>早上</h2>
+        <span class="count" id="count-morning">0</span>
+      </div>
+      <div class="task-list" id="tasks-morning"></div>
+      <div class="add-task-form">
+        <input type="text" placeholder="比如：去游泳..." id="input-morning">
+        <button class="btn-add" data-block="morning">+ 添加</button>
+      </div>
+    </div>
+
+    <div class="time-block" id="block-day">
+      <div class="time-block-header">
+        <span class="emoji">☀️</span><h2>白天</h2>
+        <span class="count" id="count-day">0</span>
+      </div>
+      <div class="task-list" id="tasks-day"></div>
+      <div class="add-task-form">
+        <input type="text" placeholder="比如：写代码..." id="input-day">
+        <button class="btn-add" data-block="day">+ 添加</button>
+      </div>
+    </div>
+
+    <div class="time-block" id="block-evening">
+      <div class="time-block-header">
+        <span class="emoji">🌙</span><h2>晚上</h2>
+        <span class="count" id="count-evening">0</span>
+      </div>
+      <div class="task-list" id="tasks-evening"></div>
+      <div class="add-task-form">
+        <input type="text" placeholder="比如：看书..." id="input-evening">
+        <button class="btn-add" data-block="evening">+ 添加</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: History -->
+<div class="tab-page" id="tab-history">
+  <div class="content">
+    <div class="summary-stat">
+      <div class="stat-card"><div class="stat-num" id="statCurrentStreak">0</div><div class="stat-label">当前连续</div></div>
+      <div class="stat-card"><div class="stat-num" id="statBestStreak">0</div><div class="stat-label">最长连续</div></div>
+      <div class="stat-card"><div class="stat-num" id="statTotalTasks">0</div><div class="stat-label">已完成任务</div></div>
+    </div>
+    <div class="history-week" id="historyWeek"></div>
+    <div class="history-detail" id="historyDetail"></div>
+  </div>
+</div>
+
+<!-- Photo Modal -->
+<div class="modal-overlay" id="photoModal">
+  <div class="modal">
+    <div id="photoModalContent"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const STORAGE_KEY = 'planner_data';
+  const VIEWING_DATE_KEY = 'planner_viewing_date';
+
+  let currentDate = localStorage.getItem(VIEWING_DATE_KEY) || todayStr();
+  let photoTaskId = null;
+  let photoBlock = null;
+
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function loadAll() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
+  }
+  function saveAll(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function loadDay(dateStr) {
+    const all = loadAll();
+    if (!all[dateStr]) {
+      all[dateStr] = { morning: [], day: [], evening: [] };
+    }
+    return all[dateStr];
+  }
+
+  function saveDay(dateStr, blocks) {
+    const all = loadAll();
+    all[dateStr] = blocks;
+    saveAll(all);
+  }
+
+  function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  }
+
+  // ====== Render ======
+  function render() {
+    const dateLabel = document.getElementById('dateLabel');
+    const isToday = currentDate === todayStr();
+    dateLabel.textContent = isToday ? '今天' : formatDisplayDate(currentDate);
+
+    const blocks = loadDay(currentDate);
+    renderBlock('morning', blocks.morning || []);
+    renderBlock('day', blocks.day || []);
+    renderBlock('evening', blocks.evening || []);
+    updateProgress(blocks);
+    updateStreakDisplay();
+
+    // Today button visibility
+    document.getElementById('goToday').style.display = isToday ? 'none' : 'inline';
+  }
+
+  function renderBlock(blockName, tasks) {
+    const list = document.getElementById('tasks-' + blockName);
+    const count = document.getElementById('count-' + blockName);
+
+    if (!tasks || tasks.length === 0) {
+      list.innerHTML = '<div class="empty-state">还没有安排，加一个吧 📝</div>';
+      count.textContent = '0';
+      return;
+    }
+
+    const done = tasks.filter(t => t.done).length;
+    count.textContent = done + '/' + tasks.length;
+
+    list.innerHTML = tasks.map(t => {
+      const hasPhoto = !!t.photo;
+      const photoHtml = hasPhoto
+        ? `<img class="task-photo" src="${escapeHtml(t.photo)}" data-taskid="${escapeHtml(t.id)}" data-block="${blockName}" alt="打卡照片">`
+        : `<div class="task-photo-placeholder" data-taskid="${escapeHtml(t.id)}" data-block="${blockName}">📷</div>`;
+      return `
+        <div class="task-card ${t.done ? 'done' : ''}">
+          <div class="task-check ${t.done ? 'checked' : ''}" data-taskid="${escapeHtml(t.id)}" data-block="${blockName}"></div>
+          <span class="task-text">${escapeHtml(t.text)}</span>
+          <div class="task-actions">
+            ${photoHtml}
+            <button class="task-del" data-taskid="${escapeHtml(t.id)}" data-block="${blockName}">🗑️</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach events
+    list.querySelectorAll('.task-check').forEach(el => {
+      el.addEventListener('click', function() {
+        toggleTask(this.dataset.taskid, this.dataset.block);
+      });
+    });
+    list.querySelectorAll('.task-del').forEach(el => {
+      el.addEventListener('click', function() {
+        deleteTask(this.dataset.taskid, this.dataset.block);
+      });
+    });
+    list.querySelectorAll('.task-photo, .task-photo-placeholder').forEach(el => {
+      el.addEventListener('click', function() {
+        const id = this.dataset.taskid;
+        const block = this.dataset.block;
+        openPhotoModal(id, block);
+      });
+    });
+  }
+
+  function updateProgress(blocks) {
+    const allTasks = [...(blocks.morning||[]), ...(blocks.day||[]), ...(blocks.evening||[])];
+    const total = allTasks.length;
+    const done = allTasks.filter(t => t.done).length;
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressText').textContent = done + ' / ' + total + (total > 0 ? ' (' + pct + '%)' : '');
+  }
+
+  function updateStreakDisplay() {
+    const streak = calculateStreak();
+    document.getElementById('streakText').textContent = '🔥 连续 ' + streak + ' 天';
+  }
+
+  // ====== Streak Calculation ======
+  function calculateStreak() {
+    const all = loadAll();
+    const dates = Object.keys(all).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse();
+
+    let streak = 0;
+    const today = todayStr();
+    let check = today;
+
+    // Count from today backward
+    for (let i = 0; i < 365; i++) {
+      const dateStr = check;
+      const dayData = all[dateStr];
+      if (dayData) {
+        const tasks = [...(dayData.morning||[]), ...(dayData.day||[]), ...(dayData.evening||[])];
+        if (tasks.length > 0 && tasks.every(t => t.done)) {
+          streak++;
+        } else if (tasks.length > 0) {
+          break; // day exists but not all done
+        } else {
+          break; // no tasks for that day
+        }
+      } else {
+        break; // no data for that day
+      }
+      // Go back one day
+      const d = new Date(dateStr + 'T00:00:00');
+      d.setDate(d.getDate() - 1);
+      check = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+    return streak;
+  }
+
+  function calculateBestStreak() {
+    const all = loadAll();
+    const dates = Object.keys(all).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    let best = 0, current = 0;
+    let prevDate = null;
+    for (const dateStr of dates) {
+      const dayData = all[dateStr];
+      const tasks = [...(dayData.morning||[]), ...(dayData.day||[]), ...(dayData.evening||[])];
+      if (tasks.length > 0 && tasks.every(t => t.done)) {
+        if (prevDate) {
+          const diff = (new Date(dateStr + 'T00:00:00') - new Date(prevDate + 'T00:00:00')) / (1000*60*60*24);
+          if (diff === 1) {
+            current++;
+          } else {
+            current = 1;
+          }
+        } else {
+          current = 1;
+        }
+        best = Math.max(best, current);
+      } else {
+        current = 0;
+      }
+      prevDate = dateStr;
+    }
+    return best;
+  }
+
+  function countTotalDone() {
+    const all = loadAll();
+    let total = 0;
+    for (const dateStr of Object.keys(all)) {
+      const day = all[dateStr];
+      for (const block of ['morning','day','evening']) {
+        if (day[block]) total += day[block].filter(t => t.done).length;
+      }
+    }
+    return total;
+  }
+
+  // ====== Task CRUD ======
+  function addTask(blockName) {
+    const input = document.getElementById('input-' + blockName);
+    const text = input.value.trim();
+    if (!text) return;
+    const blocks = loadDay(currentDate);
+    if (!blocks[blockName]) blocks[blockName] = [];
+    blocks[blockName].push({ id: generateId(), text, done: false, photo: null });
+    saveDay(currentDate, blocks);
+    input.value = '';
+    render();
+  }
+
+  function toggleTask(id, blockName) {
+    const blocks = loadDay(currentDate);
+    const tasks = blocks[blockName] || [];
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+      task.done = !task.done;
+      saveDay(currentDate, blocks);
+      render();
+    }
+  }
+
+  function deleteTask(id, blockName) {
+    const blocks = loadDay(currentDate);
+    blocks[blockName] = (blocks[blockName] || []).filter(t => t.id !== id);
+    saveDay(currentDate, blocks);
+    render();
+  }
+
+  // ====== Photo ======
+  function openPhotoModal(taskId, blockName) {
+    photoTaskId = taskId;
+    photoBlock = blockName;
+    const blocks = loadDay(currentDate);
+    const tasks = blocks[blockName] || [];
+    const task = tasks.find(t => t.id === taskId);
+
+    const content = document.getElementById('photoModalContent');
+
+    if (task && task.photo) {
+      content.innerHTML = `
+        <img src="${escapeHtml(task.photo)}" alt="打卡照片">
+        <div class="modal-actions">
+          <button class="btn-capture" id="photoRetake">重新拍摄</button>
+          <button class="btn-delete" id="photoDelete">删除照片</button>
+          <button class="btn-close" id="photoCloseModal">关闭</button>
+        </div>
+      `;
+    } else {
+      content.innerHTML = `
+        <p style="color:var(--text-secondary);margin-bottom:12px;font-size:14px;">添加打卡照片</p>
+        <div class="modal-actions">
+          <button class="btn-capture" id="photoCapture">📸 拍照</button>
+          <button class="btn-upload" id="photoUpload">📁 选择图片</button>
+          <button class="btn-close" id="photoCloseModal">取消</button>
+        </div>
+      `;
+    }
+
+    document.getElementById('photoModal').classList.add('active');
+
+    document.getElementById('photoCloseModal').addEventListener('click', closePhotoModal);
+
+    const captureBtn = document.getElementById('photoCapture') || document.getElementById('photoRetake');
+    if (captureBtn) captureBtn.addEventListener('click', openCamera);
+
+    const uploadBtn = document.getElementById('photoUpload');
+    if (uploadBtn) uploadBtn.addEventListener('click', uploadPhoto);
+
+    const deleteBtn = document.getElementById('photoDelete');
+    if (deleteBtn) deleteBtn.addEventListener('click', deletePhoto);
+  }
+
+  function closePhotoModal() {
+    document.getElementById('photoModal').classList.remove('active');
+    document.getElementById('photoModalContent').innerHTML = '';
+    photoTaskId = null;
+    photoBlock = null;
+  }
+
+  function openCamera() {
+    const content = document.getElementById('photoModalContent');
+    content.innerHTML = `
+      <video id="cameraPreview" autoplay playsinline></video>
+      <div class="camera-controls">
+        <button class="btn-shoot" id="shootBtn">📸 拍照</button>
+        <button class="btn-cancel-cam" id="cancelCamBtn">取消</button>
+      </div>
+    `;
+
+    let stream = null;
+    let video = document.getElementById('cameraPreview');
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(s => {
+          stream = s;
+          video.srcObject = s;
+        })
+        .catch(() => {
+          content.innerHTML = `<p style="color:var(--text-secondary);margin-bottom:12px;">无法打开摄像头</p>
+            <button class="btn-close" id="photoCloseModal">关闭</button>`;
+          document.getElementById('photoCloseModal').addEventListener('click', closePhotoModal);
+        });
+    }
+
+    document.getElementById('shootBtn').addEventListener('click', function() {
+      if (!video || !stream) return;
+      const canvas = document.createElement('canvas');
+      const maxW = 400;
+      const scale = Math.min(maxW / video.videoWidth, 1);
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+      if (stream) stream.getTracks().forEach(t => t.stop());
+
+      // Save photo
+      const blocks = loadDay(currentDate);
+      const tasks = blocks[photoBlock] || [];
+      const task = tasks.find(t => t.id === photoTaskId);
+      if (task) {
+        task.photo = dataUrl;
+        saveDay(currentDate, blocks);
+        render();
+      }
+      closePhotoModal();
+    });
+
+    document.getElementById('cancelCamBtn').addEventListener('click', function() {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      openPhotoModal(photoTaskId, photoBlock);
+    });
+  }
+
+  function uploadPhoto() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        // Compress
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxW = 400;
+          const scale = Math.min(maxW / img.width, 1);
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+          const blocks = loadDay(currentDate);
+          const tasks = blocks[photoBlock] || [];
+          const task = tasks.find(t => t.id === photoTaskId);
+          if (task) {
+            task.photo = dataUrl;
+            saveDay(currentDate, blocks);
+            render();
+          }
+          closePhotoModal();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
+  function deletePhoto() {
+    const blocks = loadDay(currentDate);
+    const tasks = blocks[photoBlock] || [];
+    const task = tasks.find(t => t.id === photoTaskId);
+    if (task) {
+      task.photo = null;
+      saveDay(currentDate, blocks);
+      render();
+    }
+    closePhotoModal();
+  }
+
+  // ====== History ======
+  function renderHistory() {
+    const all = loadAll();
+    const currentStreak = calculateStreak();
+    const bestStreak = calculateBestStreak();
+    const totalDone = countTotalDone();
+
+    document.getElementById('statCurrentStreak').textContent = currentStreak;
+    document.getElementById('statBestStreak').textContent = bestStreak;
+    document.getElementById('statTotalTasks').textContent = totalDone;
+
+    // Weekly view
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const weekHtml = [];
+    for (let i = 27; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      const dayData = all[dateStr];
+      const tasks = dayData ? [...(dayData.morning||[]), ...(dayData.day||[]), ...(dayData.evening||[])] : [];
+      const done = tasks.filter(t => t.done).length;
+      const total = tasks.length;
+
+      let dotClass = 'empty';
+      if (total > 0 && done === total) dotClass = 'full';
+      else if (done > 0) dotClass = 'partial';
+
+      const isToday = dateStr === todayStr();
+      const isFuture = dateStr > todayStr();
+      weekHtml.push(`<div class="history-day ${isToday ? 'today' : ''} ${isFuture ? 'future' : ''}">
+        <span class="day-num">${d.getDate()}</span>
+        <span class="day-dot ${dotClass}"></span>
+      </div>`);
+    }
+    document.getElementById('historyWeek').innerHTML =
+      '<h3>📅 近 28 天</h3><div class="history-days">' + weekHtml.join('') + '</div>';
+
+    // Recent detail
+    const dates = Object.keys(all).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse().slice(0, 7);
+    let detailHtml = '';
+    for (const dateStr of dates) {
+      const dayData = all[dateStr];
+      const tasks = [...(dayData.morning||[]), ...(dayData.day||[]), ...(dayData.evening||[])];
+      if (tasks.length === 0) continue;
+      const done = tasks.filter(t => t.done).length;
+      const allDone = done === tasks.length && tasks.length > 0;
+      const dotClass = allDone ? '' : 'missed';
+      detailHtml += `<div class="history-detail-item">
+        <span class="hd-dot ${dotClass}"></span>
+        <span style="flex:1">${formatDisplayDate(dateStr)}</span>
+        <span style="color:var(--text-secondary);font-size:12px">${done}/${tasks.length}</span>
+      </div>`;
+    }
+    document.getElementById('historyDetail').innerHTML = detailHtml
+      ? '<h3 style="font-size:14px;font-weight:600;margin-bottom:8px;">📋 最近记录</h3>' + detailHtml
+      : '<p style="color:var(--text-secondary);font-size:13px;text-align:center;padding:20px;">还没有记录，开始安排今天吧 🚀</p>';
+  }
+
+  // ====== Utilities ======
+  function formatDisplayDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const weekdays = ['日','一','二','三','四','五','六'];
+    return (d.getMonth()+1) + '月' + d.getDate() + '日 周' + weekdays[d.getDay()];
+  }
+
+  function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+  }
+
+  // ====== Navigation ======
+  document.getElementById('prevDay').addEventListener('click', function() {
+    const d = new Date(currentDate + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    currentDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    localStorage.setItem(VIEWING_DATE_KEY, currentDate);
+    render();
+  });
+
+  document.getElementById('nextDay').addEventListener('click', function() {
+    const d = new Date(currentDate + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    if (d > new Date()) return; // can't go to future
+    currentDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    localStorage.setItem(VIEWING_DATE_KEY, currentDate);
+    render();
+  });
+
+  document.getElementById('goToday').addEventListener('click', function() {
+    currentDate = todayStr();
+    localStorage.setItem(VIEWING_DATE_KEY, currentDate);
+    render();
+  });
+
+  // Add task buttons
+  document.querySelectorAll('.btn-add').forEach(btn => {
+    btn.addEventListener('click', function() {
+      addTask(this.dataset.block);
+    });
+  });
+  document.querySelectorAll('.add-task-form input').forEach(inp => {
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        const block = this.id.replace('input-', '');
+        addTask(block);
+      }
+    });
+  });
+
+  // Tab switching
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+      if (this.dataset.tab === 'history') renderHistory();
+    });
+  });
+
+  // Close modal on overlay click
+  document.getElementById('photoModal').addEventListener('click', function(e) {
+    if (e.target === this) closePhotoModal();
+  });
+
+  // ====== Init ======
+  render();
+})();
+</script>
+</body>
+</html>
